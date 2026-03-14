@@ -17,6 +17,21 @@ A Model Context Protocol (MCP) server for Quark Cloud Drive (夸克网盘), impl
 
 ## Installation
 
+### Download Pre-built Binaries
+
+Download the latest release for your platform:
+
+| Platform | Architecture | Download |
+|----------|-------------|----------|
+| macOS | Apple Silicon (M1/M2/M3/M4) | [quark-nd-mcp_1.0.0_darwin_apple_silicon.tar.gz](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.0.0/quark-nd-mcp_1.0.0_darwin_apple_silicon.tar.gz) |
+| macOS | Intel | [quark-nd-mcp_1.0.0_darwin_intel.tar.gz](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.0.0/quark-nd-mcp_1.0.0_darwin_intel.tar.gz) |
+| Linux | x64 | [quark-nd-mcp_1.0.0_linux_amd64.tar.gz](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.0.0/quark-nd-mcp_1.0.0_linux_amd64.tar.gz) |
+| Linux | ARM64 | [quark-nd-mcp_1.0.0_linux_arm64.tar.gz](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.0.0/quark-nd-mcp_1.0.0_linux_arm64.tar.gz) |
+| Windows | x64 | [quark-nd-mcp_1.0.0_windows_amd64.zip](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.0.0/quark-nd-mcp_1.0.0_windows_amd64.zip) |
+| Windows | ARM64 | [quark-nd-mcp_1.0.0_windows_arm64.zip](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.0.0/quark-nd-mcp_1.0.0_windows_arm64.zip) |
+
+### Build from Source
+
 ```bash
 go build -o quark-nd-mcp .
 ```

@@ -71,71 +71,77 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 ## Available Tools
 
 ### list_files
-List files and folders in a directory.
+List files and folders in a directory by path.
 
 Parameters:
-- `parent_id` (string): Parent folder ID. Use "0" for root directory.
+- `path` (string): Directory path to list. Use `/` or empty string for root directory. Example: `/我的文档`
 
 ### create_folder
-Create a new folder.
+Create a new folder at the specified path.
 
 Parameters:
-- `parent_id` (string): Parent folder ID. Use "0" for root.
-- `folder_name` (string): Name of the new folder.
+- `path` (string): Full path for the new folder. Example: `/parent_folder/new_folder` or `new_folder` for root
 
 ### rename
-Rename a file or folder.
+Rename a file or folder by path.
 
 Parameters:
-- `file_id` (string): File or folder ID to rename.
-- `new_name` (string): New name.
+- `old_path` (string): Current path of the file or folder. Example: `/folder/old_name`
+- `new_name` (string): New name (not full path). Example: `new_name`
 
 ### delete
-Delete files or folders.
+Delete files or folders by path.
 
 Parameters:
-- `file_ids` (array of strings): List of file/folder IDs to delete.
+- `paths` (array of strings): List of paths to delete. Example: `["/folder/file.txt", "/folder/subfolder"]`
 
 ### move
-Move files or folders.
+Move files or folders to a destination directory.
 
 Parameters:
-- `file_ids` (array of strings): List of file/folder IDs to move.
-- `dest_id` (string): Destination folder ID.
+- `source_paths` (array of strings): List of source paths to move. Example: `["/folder/file.txt"]`
+- `dest_path` (string): Destination folder path. Use `/` for root. Example: `/destination`
 
 ### copy
-Copy files or folders.
+Copy files or folders to a destination directory.
 
 Parameters:
-- `file_ids` (array of strings): List of file/folder IDs to copy.
-- `dest_id` (string): Destination folder ID.
+- `source_paths` (array of strings): List of source paths to copy. Example: `["/folder/file.txt"]`
+- `dest_path` (string): Destination folder path. Use `/` for root. Example: `/destination`
 
 ### get_info
-Get detailed information about a file or folder.
+Get detailed information about a file or folder by path.
 
 Parameters:
-- `file_id` (string): File or folder ID.
+- `path` (string): Path to file or folder. Example: `/folder/file.txt`
 
 ### get_download_url
-Get download URL for a file.
+Get the download URL for a file by path.
 
 Parameters:
-- `file_id` (string): File ID.
+- `path` (string): Path to the file. Example: `/folder/file.txt`
 
 ### upload_file
-Upload a local file.
+Upload a local file to Quark drive.
 
 Parameters:
-- `parent_id` (string): Parent folder ID. Use "0" for root.
-- `file_path` (string): Local file path to upload.
+- `dest_path` (string): Destination folder path. Use `/` for root. Example: `/我的文档`
+- `local_path` (string): Local file path to upload. Example: `/Users/name/Downloads/file.txt`
 
 ### regex_rename
-Batch rename files using regex.
+Batch rename files in a directory using regular expression pattern.
 
 Parameters:
-- `parent_id` (string): Parent folder ID containing files to rename.
-- `pattern` (string): Regular expression pattern.
-- `replacement` (string): Replacement string.
+- `path` (string): Directory path containing files to rename. Example: `/photos`
+- `pattern` (string): Regular expression pattern to match file names. Example: `IMG_(\d+)`
+- `replacement` (string): Replacement string. Use `$1`, `$2` for captured groups. Example: `Photo_$1`
+
+### search
+Search for files or folders by name in a directory (recursively).
+
+Parameters:
+- `path` (string): Directory path to search in. Use `/` for root. Example: `/我的文档`
+- `keyword` (string): Keyword to search for in file/folder names
 
 ## License
 

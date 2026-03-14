@@ -1,0 +1,8 @@
+# Binaries
+quark-nd-mcp
+
+# IDE
+.idea/
+
+# Claude
+.claude/

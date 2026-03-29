@@ -11,9 +11,10 @@ A Model Context Protocol (MCP) server for Quark Cloud Drive (夸克网盘), impl
 - **Move** - Move files and folders
 - **Copy** - Copy files and folders
 - **Get info** - Get detailed information about a file or folder
-- **Get download URL** - Get download link for files
+- **Download file** - Async download with concurrent connections (3 threads, 10MB parts)
 - **Upload file** - Upload local files to Quark drive
 - **Regex rename** - Batch rename files using regular expressions
+- **Search** - Search files recursively by keyword
 
 ## Installation
 
@@ -130,11 +131,40 @@ Get detailed information about a file or folder by path.
 Parameters:
 - `path` (string): Path to file or folder. Example: `/folder/file.txt`
 
-### get_download_url
-Get the download URL for a file by path.
+### download_file
+Start an async download task for a file. Returns a task ID to track progress.
 
 Parameters:
-- `path` (string): Path to the file. Example: `/folder/file.txt`
+- `source_path` (string): Path to the file in Quark drive. Example: `/folder/file.txt`
+- `local_path` (string): Local file path to save. Example: `/Users/name/Downloads/file.txt`
+
+Returns:
+- `task_id` (string): Use with `get_download_status` to check progress
+- `file_size` (int64): Total file size in bytes
+
+### get_download_status
+Get the status and progress of a download task.
+
+Parameters:
+- `task_id` (string): Download task ID from `download_file`. Example: `dl_1234567890`
+
+Returns:
+- `status` (string): `pending`, `running`, `completed`, `failed`, or `canceled`
+- `progress` (string): Progress percentage. Example: `45.23%`
+- `downloaded` (int64): Bytes downloaded
+- `total_size` (int64): Total file size in bytes
+- `error` (string): Error message if failed
+
+### cancel_download
+Cancel a running download task.
+
+Parameters:
+- `task_id` (string): Download task ID to cancel. Example: `dl_1234567890`
+
+### list_downloads
+List all download tasks and their status.
+
+Returns an array of download task objects with status, progress, and file info.
 
 ### upload_file
 Upload a local file to Quark drive.
@@ -157,6 +187,19 @@ Search for files or folders by name in a directory (recursively).
 Parameters:
 - `path` (string): Directory path to search in. Use `/` for root. Example: `/我的文档`
 - `keyword` (string): Keyword to search for in file/folder names
+
+## Download Workflow Example
+
+```
+1. download_file(source_path="/videos/movie.mp4", local_path="/tmp/movie.mp4")
+   → Returns: { "task_id": "dl_1709876543210", "file_size": 1500000000 }
+
+2. get_download_status(task_id="dl_1709876543210")
+   → Returns: { "status": "running", "progress": "35.50%", "downloaded": 532500000 }
+
+3. get_download_status(task_id="dl_1709876543210")
+   → Returns: { "status": "completed", "progress": "100.00%" }
+```
 
 ## License
 

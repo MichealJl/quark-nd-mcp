@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -452,8 +453,8 @@ func (c *Client) GetInfo(ctx context.Context, fid string) (*FileObj, error) {
 	return nil, fmt.Errorf("file with ID %s not found", fid)
 }
 
-// GetDownloadUrl gets the download URL for a file
-func (c *Client) GetDownloadUrl(ctx context.Context, fid string) (string, error) {
+// DownloadFile downloads a file to a local path with concurrent connections
+func (c *Client) DownloadFile(ctx context.Context, fid, localPath string, progressCallback func(int64, int64)) error {
 	data := map[string]interface{}{
 		"fids": []string{fid},
 	}
@@ -463,14 +464,246 @@ func (c *Client) GetDownloadUrl(ctx context.Context, fid string) (string, error)
 		req.SetBody(data)
 	}, &resp)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	if len(resp.Data) == 0 {
-		return "", errors.New("no download URL returned")
+		return errors.New("no download URL returned")
 	}
 
-	return resp.Data[0].DownloadUrl, nil
+	downloadUrl := resp.Data[0].DownloadUrl
+
+	// Create the directory if needed
+	dir := filepath.Dir(localPath)
+	if dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory: %w", err)
+		}
+	}
+
+	// First, get file size with a HEAD request or small GET
+	fileSize, err := c.getFileSize(ctx, downloadUrl)
+	if err != nil {
+		return fmt.Errorf("failed to get file size: %w", err)
+	}
+
+	// Use concurrent download for better speed
+	concurrency := 3
+	partSize := int64(10 * 1024 * 1024) // 10MB per part
+
+	if fileSize < partSize*2 {
+		// Small file, use single connection
+		return c.downloadSingle(ctx, downloadUrl, localPath, fileSize, progressCallback)
+	}
+
+	return c.downloadConcurrent(ctx, downloadUrl, localPath, fileSize, concurrency, partSize, progressCallback)
+}
+
+// getFileSize gets the file size from the download URL
+func (c *Client) getFileSize(ctx context.Context, url string) (int64, error) {
+	res, err := c.client.R().SetContext(ctx).
+		SetHeaders(map[string]string{
+			"Cookie":     c.cookie,
+			"Referer":    Referer,
+			"User-Agent": UserAgent,
+		}).
+		Head(url)
+	if err != nil {
+		return 0, err
+	}
+
+	// Try HEAD first
+	if res.StatusCode() == 200 && res.RawResponse.ContentLength > 0 {
+		return res.RawResponse.ContentLength, nil
+	}
+
+	// Fallback: use GET with Range header to get size
+	res, err = c.client.R().SetContext(ctx).
+		SetHeaders(map[string]string{
+			"Cookie":     c.cookie,
+			"Referer":    Referer,
+			"User-Agent": UserAgent,
+			"Range":      "bytes=0-1",
+		}).
+		Get(url)
+	if err != nil {
+		return 0, err
+	}
+
+	// Parse Content-Range header
+	contentRange := res.Header().Get("Content-Range")
+	if contentRange != "" {
+		// Content-Range: bytes 0-1/12345
+		parts := strings.Split(contentRange, "/")
+		if len(parts) == 2 {
+			size, err := strconv.ParseInt(parts[1], 10, 64)
+			if err == nil {
+				return size, nil
+			}
+		}
+	}
+
+	return res.RawResponse.ContentLength, nil
+}
+
+// downloadSingle downloads with a single connection
+func (c *Client) downloadSingle(ctx context.Context, url, localPath string, fileSize int64, progressCallback func(int64, int64)) error {
+	file, err := os.Create(localPath)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+	defer file.Close()
+
+	res, err := c.client.R().SetContext(ctx).
+		SetHeaders(map[string]string{
+			"Cookie":     c.cookie,
+			"Referer":    Referer,
+			"User-Agent": UserAgent,
+		}).
+		SetDoNotParseResponse(true).
+		Get(url)
+	if err != nil {
+		return fmt.Errorf("failed to download: %w", err)
+	}
+	defer res.RawBody().Close()
+
+	if res.StatusCode() != 200 && res.StatusCode() != 206 {
+		return fmt.Errorf("download failed with status: %d", res.StatusCode())
+	}
+
+	buf := make([]byte, 32*1024)
+	var downloaded int64
+	for {
+		n, err := res.RawBody().Read(buf)
+		if n > 0 {
+			_, writeErr := file.Write(buf[:n])
+			if writeErr != nil {
+				return writeErr
+			}
+			downloaded += int64(n)
+			if progressCallback != nil {
+				progressCallback(downloaded, fileSize)
+			}
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// downloadConcurrent downloads using multiple concurrent connections
+func (c *Client) downloadConcurrent(ctx context.Context, url, localPath string, fileSize int64, concurrency int, partSize int64, progressCallback func(int64, int64)) error {
+	file, err := os.Create(localPath)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+	defer file.Close()
+
+	// Calculate parts
+	numParts := int(fileSize / partSize)
+	if fileSize%partSize > 0 {
+		numParts++
+	}
+
+	if numParts < concurrency {
+		concurrency = numParts
+	}
+
+	var downloaded int64
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	errChan := make(chan error, concurrency)
+
+	// Download parts concurrently
+	for i := 0; i < concurrency; i++ {
+		wg.Add(1)
+		go func(partNum int) {
+			defer wg.Done()
+			for {
+				mu.Lock()
+				start := downloaded
+				if start >= fileSize {
+					mu.Unlock()
+					return
+				}
+				end := start + partSize
+				if end > fileSize {
+					end = fileSize
+				}
+				downloaded = end
+				mu.Unlock()
+
+				err := c.downloadPart(ctx, url, file, start, end-1, fileSize)
+				if err != nil {
+					errChan <- err
+					return
+				}
+
+				if progressCallback != nil {
+					mu.Lock()
+					current := downloaded
+					mu.Unlock()
+					progressCallback(current, fileSize)
+				}
+			}
+		}(i)
+	}
+
+	wg.Wait()
+	select {
+	case err := <-errChan:
+		return err
+	default:
+	}
+
+	return nil
+}
+
+// downloadPart downloads a specific range of bytes
+func (c *Client) downloadPart(ctx context.Context, url string, file *os.File, start, end, fileSize int64) error {
+	res, err := c.client.R().SetContext(ctx).
+		SetHeaders(map[string]string{
+			"Cookie":     c.cookie,
+			"Referer":    Referer,
+			"User-Agent": UserAgent,
+			"Range":      fmt.Sprintf("bytes=%d-%d", start, end),
+		}).
+		SetDoNotParseResponse(true).
+		Get(url)
+	if err != nil {
+		return fmt.Errorf("failed to download part: %w", err)
+	}
+	defer res.RawBody().Close()
+
+	if res.StatusCode() != 200 && res.StatusCode() != 206 {
+		return fmt.Errorf("download part failed with status: %d", res.StatusCode())
+	}
+
+	buf := make([]byte, 32*1024)
+	offset := start
+	for {
+		n, err := res.RawBody().Read(buf)
+		if n > 0 {
+			_, writeErr := file.WriteAt(buf[:n], offset)
+			if writeErr != nil {
+				return writeErr
+			}
+			offset += int64(n)
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // UploadFile uploads a file to a folder

@@ -12,8 +12,9 @@ import (
 
 // Server represents the MCP server for Quark drive
 type Server struct {
-	client *quark.Client
-	server *mcp.Server
+	client         *quark.Client
+	server         *mcp.Server
+	downloadMgr    *quark.DownloadManager
 }
 
 // NewServer creates a new MCP server
@@ -26,8 +27,9 @@ func NewServer(cfg *config.Config) *Server {
 	}, nil)
 
 	s := &Server{
-		client: client,
-		server: server,
+		client:      client,
+		server:      server,
+		downloadMgr: quark.NewDownloadManager(client),
 	}
 
 	// Register all tools
@@ -84,11 +86,29 @@ func (s *Server) registerTools() {
 		Description: "Get detailed information about a file or folder by path. Example: '/folder/file.txt'",
 	}, s.getInfo)
 
-	// Tool: Get download URL
+	// Tool: Download file (async)
 	mcp.AddTool(s.server, &mcp.Tool{
-		Name:        "get_download_url",
-		Description: "Get the download URL for a file by path. Example: '/folder/file.txt'",
-	}, s.getDownloadUrl)
+		Name:        "download_file",
+		Description: "Start an async download task. Returns task ID. Use get_download_status to check progress. Example: '/folder/file.txt' to '/Users/name/Downloads/file.txt'",
+	}, s.downloadFile)
+
+	// Tool: Get download status
+	mcp.AddTool(s.server, &mcp.Tool{
+		Name:        "get_download_status",
+		Description: "Get the status of a download task by ID. Returns progress, status (pending/running/completed/failed/canceled).",
+	}, s.getDownloadStatus)
+
+	// Tool: Cancel download
+	mcp.AddTool(s.server, &mcp.Tool{
+		Name:        "cancel_download",
+		Description: "Cancel a running download task by ID.",
+	}, s.cancelDownload)
+
+	// Tool: List downloads
+	mcp.AddTool(s.server, &mcp.Tool{
+		Name:        "list_downloads",
+		Description: "List all download tasks and their status.",
+	}, s.listDownloads)
 
 	// Tool: Upload file
 	mcp.AddTool(s.server, &mcp.Tool{
@@ -142,8 +162,17 @@ type GetInfoInput struct {
 	Path string `json:"path" jsonschema:"Path to file or folder. Example: '/folder/file.txt'"`
 }
 
-type GetDownloadUrlInput struct {
-	Path string `json:"path" jsonschema:"Path to the file. Example: '/folder/file.txt'"`
+type DownloadFileInput struct {
+	SourcePath string `json:"source_path" jsonschema:"Path to the file in Quark drive. Example: '/folder/file.txt'"`
+	LocalPath  string `json:"local_path" jsonschema:"Local file path to save. Example: '/Users/name/Downloads/file.txt'"`
+}
+
+type GetDownloadStatusInput struct {
+	TaskID string `json:"task_id" jsonschema:"Download task ID. Example: 'dl_1234567890'"`
+}
+
+type CancelDownloadInput struct {
+	TaskID string `json:"task_id" jsonschema:"Download task ID to cancel. Example: 'dl_1234567890'"`
 }
 
 type UploadFileInput struct {
@@ -353,27 +382,71 @@ func (s *Server) getInfo(ctx context.Context, req *mcp.CallToolRequest, args Get
 	}, nil, nil
 }
 
-func (s *Server) getDownloadUrl(ctx context.Context, req *mcp.CallToolRequest, args GetDownloadUrlInput) (*mcp.CallToolResult, any, error) {
-	fileID, isFolder, _, err := s.client.ResolvePathToFileOrFolder(ctx, args.Path)
+func (s *Server) downloadFile(ctx context.Context, req *mcp.CallToolRequest, args DownloadFileInput) (*mcp.CallToolResult, any, error) {
+	fileID, isFolder, fileObj, err := s.client.ResolvePathToFileOrFolder(ctx, args.SourcePath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to resolve path '%s': %w", args.Path, err)
+		return nil, nil, fmt.Errorf("failed to resolve path '%s': %w", args.SourcePath, err)
 	}
 
 	if isFolder {
-		return nil, nil, fmt.Errorf("cannot get download URL for a folder: '%s'", args.Path)
+		return nil, nil, fmt.Errorf("cannot download a folder: '%s'", args.SourcePath)
 	}
 
-	url, err := s.client.GetDownloadUrl(ctx, fileID)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get download URL: %w", err)
-	}
+	taskID := s.downloadMgr.StartDownload(ctx, fileID, args.SourcePath, args.LocalPath)
 
 	result := map[string]interface{}{
-		"success":      true,
-		"download_url": url,
+		"success":    true,
+		"task_id":    taskID,
+		"file_name":  fileObj.Name,
+		"file_size":  fileObj.Size,
+		"local_path": args.LocalPath,
+		"message":    fmt.Sprintf("Download task started. Use get_download_status with task_id '%s' to check progress", taskID),
 	}
 
 	data, _ := json.MarshalIndent(result, "", "  ")
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{&mcp.TextContent{Text: string(data)}},
+	}, nil, nil
+}
+
+func (s *Server) getDownloadStatus(ctx context.Context, req *mcp.CallToolRequest, args GetDownloadStatusInput) (*mcp.CallToolResult, any, error) {
+	task := s.downloadMgr.GetTask(args.TaskID)
+	if task == nil {
+		return nil, nil, fmt.Errorf("task not found: %s", args.TaskID)
+	}
+
+	data, _ := json.MarshalIndent(task.ToMap(), "", "  ")
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{&mcp.TextContent{Text: string(data)}},
+	}, nil, nil
+}
+
+func (s *Server) cancelDownload(ctx context.Context, req *mcp.CallToolRequest, args CancelDownloadInput) (*mcp.CallToolResult, any, error) {
+	err := s.downloadMgr.CancelTask(args.TaskID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to cancel task: %w", err)
+	}
+
+	result := map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Download task '%s' canceled", args.TaskID),
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{&mcp.TextContent{Text: string(data)}},
+	}, nil, nil
+}
+
+func (s *Server) listDownloads(ctx context.Context, req *mcp.CallToolRequest, args struct{}) (*mcp.CallToolResult, any, error) {
+	tasks := s.downloadMgr.ListTasks()
+
+	results := make([]map[string]interface{}, len(tasks))
+	for i, task := range tasks {
+		results[i] = task.ToMap()
+	}
+
+	data, _ := json.MarshalIndent(results, "", "  ")
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{&mcp.TextContent{Text: string(data)}},
 	}, nil, nil

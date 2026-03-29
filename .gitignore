@@ -1,5 +1,6 @@
 # Binaries
 quark-nd-mcp
+dist/
 
 # IDE
 .idea/

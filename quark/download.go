@@ -20,17 +20,17 @@ const (
 
 // DownloadTask represents a download task
 type DownloadTask struct {
-	ID           string
-	SourcePath   string
-	LocalPath    string
-	Status       DownloadStatus
-	Progress     float64 // 0-100
-	Downloaded   int64
-	TotalSize    int64
-	Error        string
-	StartTime    time.Time
-	EndTime      time.Time
-	cancelFunc   context.CancelFunc
+	ID         string
+	SourcePath string
+	LocalPath  string
+	Status     DownloadStatus
+	Progress   float64 // 0-100
+	Downloaded int64
+	TotalSize  int64
+	Error      string
+	StartTime  time.Time
+	EndTime    time.Time
+	cancelFunc context.CancelFunc
 }
 
 // DownloadManager manages download tasks

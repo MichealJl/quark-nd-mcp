@@ -23,17 +23,17 @@ import (
 
 const (
 	APIEndpoint = "https://drive.quark.cn/1/clouddrive"
-	UserAgent    = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) quark-cloud-drive/2.5.20 Chrome/100.0.4896.160 Electron/18.3.5.4-b478491100 Safari/537.36 Channel/pckk_other_ch"
-	Referer      = "https://pan.quark.cn"
-	PR           = "ucpro"
+	UserAgent   = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) quark-cloud-drive/2.5.20 Chrome/100.0.4896.160 Electron/18.3.5.4-b478491100 Safari/537.36 Channel/pckk_other_ch"
+	Referer     = "https://pan.quark.cn"
+	PR          = "ucpro"
 )
 
 // Client is the Quark API client
 type Client struct {
-	cookie    string
-	client    *resty.Client
-	orderBy   string
-	orderDir  string
+	cookie   string
+	client   *resty.Client
+	orderBy  string
+	orderDir string
 }
 
 // NewClient creates a new Quark API client
@@ -340,8 +340,8 @@ func (c *Client) CreateFolder(ctx context.Context, parentFid, folderName string)
 // Rename renames a file or folder
 func (c *Client) Rename(ctx context.Context, fid, newName string) error {
 	data := map[string]interface{}{
-		"fid":        fid,
-		"file_name":   newName,
+		"fid":       fid,
+		"file_name": newName,
 	}
 
 	_, err := c.request(ctx, "/file/rename", http.MethodPost, func(req *resty.Request) {
@@ -1100,4 +1100,199 @@ func jsonMarshal(v interface{}) ([]byte, error) {
 	}
 	buf.WriteByte('}')
 	return buf.Bytes(), nil
+}
+
+// ExtractShareURL extracts pwd_id and passcode from a share URL
+// Example: https://pan.quark.cn/s/abc123?pwd=xyz
+func (c *Client) ExtractShareURL(shareURL string) (pwdID, passcode string) {
+	// Extract pwd_id from /s/xxx pattern
+	re := regexp.MustCompile(`/s/(\w+)`)
+	match := re.FindStringSubmatch(shareURL)
+	if len(match) > 1 {
+		pwdID = match[1]
+	}
+
+	// Extract passcode from pwd=xxx pattern
+	rePwd := regexp.MustCompile(`pwd=(\w+)`)
+	matchPwd := rePwd.FindStringSubmatch(shareURL)
+	if len(matchPwd) > 1 {
+		passcode = matchPwd[1]
+	}
+
+	return pwdID, passcode
+}
+
+// GetStoken gets a share token for accessing shared files
+func (c *Client) GetStoken(ctx context.Context, pwdID, passcode string) (string, error) {
+	data := map[string]interface{}{
+		"pwd_id":   pwdID,
+		"passcode": passcode,
+	}
+
+	var resp StokenResp
+	_, err := c.request(ctx, "/share/sharepage/token", http.MethodPost, func(req *resty.Request) {
+		req.SetBody(data)
+	}, &resp)
+	if err != nil {
+		return "", err
+	}
+
+	return resp.Data.Stoken, nil
+}
+
+// GetShareDetail gets the file list from a shared folder
+func (c *Client) GetShareDetail(ctx context.Context, pwdID, stoken, pdirFid string) ([]*ShareFileObj, error) {
+	files := make([]ShareFile, 0)
+	page := 1
+	size := 50
+
+	for {
+		query := map[string]string{
+			"pwd_id":                pwdID,
+			"stoken":                stoken,
+			"pdir_fid":              pdirFid,
+			"force":                 "0",
+			"_page":                 strconv.Itoa(page),
+			"_size":                 strconv.Itoa(size),
+			"_fetch_banner":         "0",
+			"_fetch_share":          "0",
+			"_fetch_total":          "1",
+			"_sort":                 "file_type:asc,updated_at:desc",
+			"ver":                   "2",
+			"fetch_share_full_path": "0",
+		}
+
+		var resp ShareDetailResp
+		_, err := c.request(ctx, "/share/sharepage/detail", http.MethodGet, func(req *resty.Request) {
+			req.SetQueryParams(query)
+		}, &resp)
+		if err != nil {
+			return nil, err
+		}
+
+		if resp.Code != 0 {
+			return nil, fmt.Errorf("API error: %s", resp.Message)
+		}
+
+		files = append(files, resp.Data.List...)
+
+		if page*size >= resp.Metadata.Total {
+			break
+		}
+		page++
+	}
+
+	result := make([]*ShareFileObj, len(files))
+	for i, f := range files {
+		result[i] = f.ToShareFileObj()
+	}
+	return result, nil
+}
+
+// GetShareDetailRaw gets the raw share file list (with fid_token_list)
+func (c *Client) GetShareDetailRaw(ctx context.Context, pwdID, stoken, pdirFid string) ([]ShareFile, error) {
+	files := make([]ShareFile, 0)
+	page := 1
+	size := 50
+
+	for {
+		query := map[string]string{
+			"pwd_id":                pwdID,
+			"stoken":                stoken,
+			"pdir_fid":              pdirFid,
+			"force":                 "0",
+			"_page":                 strconv.Itoa(page),
+			"_size":                 strconv.Itoa(size),
+			"_fetch_banner":         "0",
+			"_fetch_share":          "0",
+			"_fetch_total":          "1",
+			"_sort":                 "file_type:asc,updated_at:desc",
+			"ver":                   "2",
+			"fetch_share_full_path": "0",
+		}
+
+		var resp ShareDetailResp
+		_, err := c.request(ctx, "/share/sharepage/detail", http.MethodGet, func(req *resty.Request) {
+			req.SetQueryParams(query)
+		}, &resp)
+		if err != nil {
+			return nil, err
+		}
+
+		if resp.Code != 0 {
+			return nil, fmt.Errorf("API error: %s", resp.Message)
+		}
+
+		files = append(files, resp.Data.List...)
+
+		if page*size >= resp.Metadata.Total {
+			break
+		}
+		page++
+	}
+
+	return files, nil
+}
+
+// SaveFromShare saves files from a share to user's drive
+func (c *Client) SaveFromShare(ctx context.Context, pwdID, stoken string, fidList, fidTokenList []string, toPdirFid string) (string, error) {
+	data := map[string]interface{}{
+		"fid_list":       fidList,
+		"fid_token_list": fidTokenList,
+		"to_pdir_fid":    toPdirFid,
+		"pwd_id":         pwdID,
+		"stoken":         stoken,
+		"pdir_fid":       "0",
+		"scene":          "link",
+	}
+
+	var resp SaveFileResp
+	_, err := c.request(ctx, "/share/sharepage/save", http.MethodPost, func(req *resty.Request) {
+		req.SetBody(data)
+	}, &resp)
+	if err != nil {
+		return "", err
+	}
+
+	return resp.Data.TaskId, nil
+}
+
+// QueryTask queries the status of a task (like save operation)
+func (c *Client) QueryTask(ctx context.Context, taskID string) (int, []string, error) {
+	query := map[string]string{
+		"task_id":     taskID,
+		"retry_index": "0",
+	}
+
+	var resp TaskResp
+	_, err := c.request(ctx, "/task", http.MethodGet, func(req *resty.Request) {
+		req.SetQueryParams(query)
+	}, &resp)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	// Status: 0=pending, 1=running, 2=completed
+	return resp.Data.Status, resp.Data.SaveAs.SaveAsTopFids, nil
+}
+
+// WaitForTask waits for a task to complete and returns the result
+func (c *Client) WaitForTask(ctx context.Context, taskID string) ([]string, error) {
+	maxRetries := 60
+	retryDelay := 500 * time.Millisecond
+
+	for i := 0; i < maxRetries; i++ {
+		status, fids, err := c.QueryTask(ctx, taskID)
+		if err != nil {
+			return nil, err
+		}
+
+		if status == 2 {
+			return fids, nil
+		}
+
+		time.Sleep(retryDelay)
+	}
+
+	return nil, fmt.Errorf("task timeout after %d retries", maxRetries)
 }

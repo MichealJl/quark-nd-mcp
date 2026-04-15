@@ -22,15 +22,15 @@ type File struct {
 
 // FileInfo represents detailed file information
 type FileInfo struct {
-	Fid         string `json:"fid"`
-	FileName    string `json:"file_name"`
-	Size        int64  `json:"size"`
-	File        bool   `json:"file"`
-	UpdatedAt   int64  `json:"updated_at"`
-	CreatedAt   int64  `json:"created_at"`
-	FileType    int    `json:"file_type"`
-	FormatType  string `json:"format_type"`
-	Category    int    `json:"category"`
+	Fid        string `json:"fid"`
+	FileName   string `json:"file_name"`
+	Size       int64  `json:"size"`
+	File       bool   `json:"file"`
+	UpdatedAt  int64  `json:"updated_at"`
+	CreatedAt  int64  `json:"created_at"`
+	FileType   int    `json:"file_type"`
+	FormatType string `json:"format_type"`
+	Category   int    `json:"category"`
 }
 
 // FileObj is a simplified file object for MCP responses
@@ -141,4 +141,81 @@ type GetInfoResp struct {
 	Data struct {
 		File FileInfo `json:"file"`
 	} `json:"data"`
+}
+
+// StokenResp is the response for getting share token
+type StokenResp struct {
+	Resp
+	Data struct {
+		Stoken    string `json:"stoken"`
+		Subscribe string `json:"subscribe"`
+	} `json:"data"`
+}
+
+// ShareFile represents a file in a shared folder
+type ShareFile struct {
+	Fid           string `json:"fid"`
+	FileName      string `json:"file_name"`
+	Size          int64  `json:"size"`
+	Dir           bool   `json:"dir"`
+	FileType      int    `json:"file_type"`
+	ObjCategory   string `json:"obj_category"`
+	ShareFidToken string `json:"share_fid_token"`
+	UpdatedAt     int64  `json:"updated_at"`
+	CreatedAt     int64  `json:"created_at"`
+}
+
+// ShareDetailResp is the response for share file list
+type ShareDetailResp struct {
+	Resp
+	Data struct {
+		List []ShareFile `json:"list"`
+	} `json:"data"`
+	Metadata struct {
+		Total int `json:"_total"`
+	} `json:"metadata"`
+}
+
+// SaveFileResp is the response for saving shared files
+type SaveFileResp struct {
+	Resp
+	Data struct {
+		TaskId string `json:"task_id"`
+	} `json:"data"`
+}
+
+// TaskResp is the response for querying task status
+type TaskResp struct {
+	Resp
+	Data struct {
+		Status    int    `json:"status"`
+		TaskTitle string `json:"task_title"`
+		SaveAs    struct {
+			SaveAsTopFids []string `json:"save_as_top_fids"`
+		} `json:"save_as"`
+	} `json:"data"`
+}
+
+// ShareFileObj is a simplified share file object for MCP responses
+type ShareFileObj struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Size      int64     `json:"size"`
+	IsFolder  bool      `json:"is_folder"`
+	Category  string    `json:"category"`
+	UpdatedAt time.Time `json:"updated_at"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// ToShareFileObj converts ShareFile to ShareFileObj
+func (f *ShareFile) ToShareFileObj() *ShareFileObj {
+	return &ShareFileObj{
+		ID:        f.Fid,
+		Name:      f.FileName,
+		Size:      f.Size,
+		IsFolder:  f.Dir,
+		Category:  f.ObjCategory,
+		UpdatedAt: time.UnixMilli(f.UpdatedAt),
+		CreatedAt: time.UnixMilli(f.CreatedAt),
+	}
 }

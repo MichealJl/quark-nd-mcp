@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5"
+	"crypto/sha1"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
@@ -706,6 +707,18 @@ func (c *Client) downloadPart(ctx context.Context, url string, file *os.File, st
 	return nil
 }
 
+// fileHashes returns the hex-encoded MD5 and SHA-1 digests of r.
+// Quark's upload callback verifies the object SHA-1 (content_hash), so the two
+// digests must be computed independently.
+func fileHashes(r io.Reader) (string, string, error) {
+	md5Hash := md5.New()
+	sha1Hash := sha1.New()
+	if _, err := io.Copy(io.MultiWriter(md5Hash, sha1Hash), r); err != nil {
+		return "", "", err
+	}
+	return hex.EncodeToString(md5Hash.Sum(nil)), hex.EncodeToString(sha1Hash.Sum(nil)), nil
+}
+
 // UploadFile uploads a file to a folder
 func (c *Client) UploadFile(ctx context.Context, parentFid, filePath string, progressCallback func(int64, int64)) error {
 	file, err := os.Open(filePath)
@@ -723,17 +736,13 @@ func (c *Client) UploadFile(ctx context.Context, parentFid, filePath string, pro
 	fileName := filepath.Base(filePath)
 
 	// Calculate MD5 and SHA1
-	md5Hash := md5.New()
-	sha1Hash := md5.New() // Note: Quark uses md5 for both in their implementation
-	if _, err := io.Copy(io.MultiWriter(md5Hash, sha1Hash), file); err != nil {
+	md5Str, sha1Str, err := fileHashes(file)
+	if err != nil {
 		return fmt.Errorf("failed to calculate hash: %w", err)
 	}
 	if _, err := file.Seek(0, 0); err != nil {
 		return fmt.Errorf("failed to seek file: %w", err)
 	}
-
-	md5Str := hex.EncodeToString(md5Hash.Sum(nil))
-	sha1Str := hex.EncodeToString(sha1Hash.Sum(nil))
 
 	// Pre-upload
 	now := time.Now()
@@ -993,14 +1002,10 @@ func (c *Client) UploadFromReader(ctx context.Context, parentFid, fileName strin
 		return fmt.Errorf("failed to read data: %w", err)
 	}
 
-	md5Hash := md5.New()
-	sha1Hash := md5.New()
-	if _, err := io.Copy(io.MultiWriter(md5Hash, sha1Hash), bytes.NewReader(data)); err != nil {
+	md5Str, sha1Str, err := fileHashes(bytes.NewReader(data))
+	if err != nil {
 		return fmt.Errorf("failed to calculate hash: %w", err)
 	}
-
-	md5Str := hex.EncodeToString(md5Hash.Sum(nil))
-	sha1Str := hex.EncodeToString(sha1Hash.Sum(nil))
 
 	// Pre-upload
 	now := time.Now()

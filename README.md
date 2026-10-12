@@ -50,14 +50,27 @@ go build -o quark-nd-mcp .
 }
 ```
 
-### 如何获取 Cookie
+### 如何获取 Cookie（推荐：用 login 自动完成）
 
-1. 在浏览器中登录 [夸克网盘](https://pan.quark.cn)
-2. 打开开发者工具（F12）
-3. 切换到 Network（网络）标签
-4. 刷新页面
-5. 找到任意请求到 `drive.quark.cn` 的请求
-6. 从请求头中复制 `Cookie` 的值
+```bash
+./quark-nd-mcp login
+```
+
+它先**列出本机探测到的浏览器让你确认**（上次用过的排最前并标注，回车即沿用），也可以用 `-browser` 指定；
+然后用这个浏览器打开一个**专属 profile** 的独立窗口，停在夸克网盘首页；
+你在该窗口登录后，自动取回 Cookie（含 HttpOnly 的 `__pus`）、真调一次接口校验、通过才写入配置。
+不影响你日常使用的浏览器，也不需要先关闭任何浏览器。登录成功后会记住这次的选择
+（配置文件旁的 `login.json`），以后不带参数跑就默认沿用，无需重新指定。
+
+常用参数：`-browser edge|chrome|<可执行文件路径>`、`-yes`（跳过确认，计划任务用）、
+`-profile-dir <目录>`（默认 `~/.quark-nd-disk/browser-profile-<浏览器>`，按浏览器分目录）、
+`-config <路径>`、`-timeout <时长>`（默认 10m）、`-dump-json <路径>`。
+
+多个实例（客户端可能同时起好几个本服务进程）**共用同一份配置，登录一次即可**；
+`login` 重写配置后，正在运行的实例下次请求就会用上新 Cookie，**不需要重启**。
+
+手工方式：在浏览器中登录夸克网盘 → F12 → Network → 找任意发往 `drive.quark.cn` 的请求 →
+复制请求头里的 `Cookie` 值，然后 `./quark-nd-mcp config set cookie "<粘贴>"`。
 
 ## 使用方法
 

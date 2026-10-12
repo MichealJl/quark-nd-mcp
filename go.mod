@@ -4,6 +4,7 @@ go 1.25.0
 
 require (
 	github.com/go-resty/resty/v2 v2.11.0
+	github.com/gorilla/websocket v1.5.3
 	github.com/modelcontextprotocol/go-sdk v1.4.0
 )
 

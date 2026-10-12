@@ -1,6 +1,9 @@
 package quark
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // Resp is the base response from Quark API
 type Resp struct {
@@ -85,10 +88,10 @@ type UpPreResp struct {
 		UploadUrl string `json:"upload_url"`
 		Fid       string `json:"fid"`
 		Bucket    string `json:"bucket"`
-		Callback  struct {
-			CallbackUrl  string `json:"callbackUrl"`
-			CallbackBody string `json:"callbackBody"`
-		} `json:"callback"`
+		// Callback 必须原样保留服务端下发的字节。
+		// 曾用固定字段结构体接收，服务端多下发的字段（如 callbackVar）会被丢弃，
+		// 重新序列化后 OSS 回调校验失败（CompleteMultipartUpload 返回 203 CallbackFailed）。
+		Callback  json.RawMessage `json:"callback"`
 		FormatType string `json:"format_type"`
 		Size       int    `json:"size"`
 		AuthInfo   string `json:"auth_info"`

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5"
+	"crypto/sha1"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
@@ -30,10 +31,11 @@ const (
 
 // Client is the Quark API client
 type Client struct {
-	cookie   string
-	client   *resty.Client
-	orderBy  string
-	orderDir string
+	cookie       string
+	cookieSource func() string
+	client       *resty.Client
+	orderBy      string
+	orderDir     string
 }
 
 // NewClient creates a new Quark API client
@@ -49,6 +51,22 @@ func NewClient(cookie string) *Client {
 	}
 }
 
+// SetCookieSource 让客户端每次取用 Cookie 时都问一次 f。
+// 用于配置热更新：login 重写配置文件后，正在运行的实例无需重启就能用上新 Cookie。
+func (c *Client) SetCookieSource(f func() string) {
+	c.cookieSource = f
+}
+
+// currentCookie 返回当前应使用的 Cookie：来源取不到时退回启动时的那份。
+func (c *Client) currentCookie() string {
+	if c.cookieSource != nil {
+		if v := c.cookieSource(); v != "" {
+			return v
+		}
+	}
+	return c.cookie
+}
+
 // SetOrder sets the ordering for file listing
 func (c *Client) SetOrder(orderBy, orderDir string) {
 	c.orderBy = orderBy
@@ -60,7 +78,7 @@ func (c *Client) request(ctx context.Context, pathname string, method string, ca
 	u := APIEndpoint + pathname
 	req := c.client.R().SetContext(ctx)
 	req.SetHeaders(map[string]string{
-		"Cookie":     c.cookie,
+		"Cookie":     c.currentCookie(),
 		"Accept":     "application/json, text/plain, */*",
 		"Referer":    Referer,
 		"User-Agent": UserAgent,
@@ -503,7 +521,7 @@ func (c *Client) DownloadFile(ctx context.Context, fid, localPath string, progre
 func (c *Client) getFileSize(ctx context.Context, url string) (int64, error) {
 	res, err := c.client.R().SetContext(ctx).
 		SetHeaders(map[string]string{
-			"Cookie":     c.cookie,
+			"Cookie":     c.currentCookie(),
 			"Referer":    Referer,
 			"User-Agent": UserAgent,
 		}).
@@ -520,7 +538,7 @@ func (c *Client) getFileSize(ctx context.Context, url string) (int64, error) {
 	// Fallback: use GET with Range header to get size
 	res, err = c.client.R().SetContext(ctx).
 		SetHeaders(map[string]string{
-			"Cookie":     c.cookie,
+			"Cookie":     c.currentCookie(),
 			"Referer":    Referer,
 			"User-Agent": UserAgent,
 			"Range":      "bytes=0-1",
@@ -556,7 +574,7 @@ func (c *Client) downloadSingle(ctx context.Context, url, localPath string, file
 
 	res, err := c.client.R().SetContext(ctx).
 		SetHeaders(map[string]string{
-			"Cookie":     c.cookie,
+			"Cookie":     c.currentCookie(),
 			"Referer":    Referer,
 			"User-Agent": UserAgent,
 		}).
@@ -668,7 +686,7 @@ func (c *Client) downloadConcurrent(ctx context.Context, url, localPath string, 
 func (c *Client) downloadPart(ctx context.Context, url string, file *os.File, start, end, fileSize int64) error {
 	res, err := c.client.R().SetContext(ctx).
 		SetHeaders(map[string]string{
-			"Cookie":     c.cookie,
+			"Cookie":     c.currentCookie(),
 			"Referer":    Referer,
 			"User-Agent": UserAgent,
 			"Range":      fmt.Sprintf("bytes=%d-%d", start, end),
@@ -724,7 +742,8 @@ func (c *Client) UploadFile(ctx context.Context, parentFid, filePath string, pro
 
 	// Calculate MD5 and SHA1
 	md5Hash := md5.New()
-	sha1Hash := md5.New() // Note: Quark uses md5 for both in their implementation
+	// sha1 必须是真 SHA1：曾误用 md5 充当，服务端校验不通过会导致上传后回调失败（203）
+	sha1Hash := sha1.New()
 	if _, err := io.Copy(io.MultiWriter(md5Hash, sha1Hash), file); err != nil {
 		return fmt.Errorf("failed to calculate hash: %w", err)
 	}
@@ -891,7 +910,11 @@ func (c *Client) uploadCommit(ctx context.Context, pre UpPreResp, md5s []string)
 	m.Write([]byte(body))
 	contentMd5 := base64.StdEncoding.EncodeToString(m.Sum(nil))
 
-	callbackBytes, _ := jsonMarshal(pre.Data.Callback)
+	// 原样透传 callback 字节（重新序列化会丢字段导致 OSS 回调校验失败）
+	callbackBytes := []byte(pre.Data.Callback)
+	if len(callbackBytes) == 0 {
+		callbackBytes = []byte("{}")
+	}
 	callbackBase64 := base64.StdEncoding.EncodeToString(callbackBytes)
 
 	data := map[string]interface{}{
@@ -994,7 +1017,7 @@ func (c *Client) UploadFromReader(ctx context.Context, parentFid, fileName strin
 	}
 
 	md5Hash := md5.New()
-	sha1Hash := md5.New()
+	sha1Hash := sha1.New()
 	if _, err := io.Copy(io.MultiWriter(md5Hash, sha1Hash), bytes.NewReader(data)); err != nil {
 		return fmt.Errorf("failed to calculate hash: %w", err)
 	}
@@ -1081,25 +1104,6 @@ func (c *Client) UploadFromReader(ctx context.Context, parentFid, fileName strin
 	}
 
 	return c.uploadFinish(ctx, preResp.Data.TaskId, preResp.Data.ObjKey)
-}
-
-func jsonMarshal(v interface{}) ([]byte, error) {
-	// Simple JSON marshal for callback struct
-	var buf bytes.Buffer
-	buf.WriteByte('{')
-	switch t := v.(type) {
-	case struct {
-		CallbackUrl  string `json:"callbackUrl"`
-		CallbackBody string `json:"callbackBody"`
-	}:
-		buf.WriteString(`"callbackUrl":"`)
-		buf.WriteString(t.CallbackUrl)
-		buf.WriteString(`","callbackBody":"`)
-		buf.WriteString(t.CallbackBody)
-		buf.WriteString(`"`)
-	}
-	buf.WriteByte('}')
-	return buf.Bytes(), nil
 }
 
 // ExtractShareURL extracts pwd_id and passcode from a share URL

@@ -17,9 +17,14 @@ type Server struct {
 	downloadMgr *quark.DownloadManager
 }
 
-// NewServer creates a new MCP server
-func NewServer(cfg *config.Config) *Server {
+// NewServer creates a new MCP server.
+// watcher 非空时，客户端每次取用 Cookie 都会问它 —— 支持配置热更新：
+// login 重写配置后，正在运行的实例不用重启就能用上新 Cookie。
+func NewServer(cfg *config.Config, watcher *config.Watcher) *Server {
 	client := quark.NewClient(cfg.Cookie)
+	if watcher != nil {
+		client.SetCookieSource(watcher.Cookie)
+	}
 
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "quark-nd-mcp",

@@ -52,13 +52,12 @@ go build -o quark-nd-mcp .
 
 ### 如何获取 Cookie
 
-1. 在浏览器中登录 [夸克网盘](https://pan.quark.cn)，进入文件列表。
-2. 按 F12 打开开发者工具，切换到 **Network / 网络**。
-3. 刷新页面，搜索 `file/sort`。
-4. 选择 `drive-pc.quark.cn` 的请求（部分客户端为 `drive.quark.cn`）。
-5. 从 **Request Headers / 请求标头** 复制完整的 `Cookie` 值（不含 `Cookie:` 前缀），填入配置文件的 `cookie` 字段。
-
-请勿公开或提交真实 Cookie。
+1. 在浏览器中登录 [夸克网盘](https://pan.quark.cn)
+2. 打开开发者工具（F12）
+3. 切换到 Network（网络）标签
+4. 刷新页面
+5. 找到任意请求到 `drive-pc.quark.cn` 的请求
+6. 从请求头中复制 `Cookie` 的值
 
 ## 使用方法
 

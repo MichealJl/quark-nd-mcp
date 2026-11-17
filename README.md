@@ -52,12 +52,23 @@ go build -o quark-nd-mcp .
 
 ### 如何获取 Cookie
 
-1. 在浏览器中登录 [夸克网盘](https://pan.quark.cn)
-2. 打开开发者工具（F12）
-3. 切换到 Network（网络）标签
-4. 刷新页面
-5. 找到任意请求到 `drive.quark.cn` 的请求
-6. 从请求头中复制 `Cookie` 的值
+1. 在浏览器中登录 [夸克网盘](https://pan.quark.cn)，进入自己的文件列表。
+2. 打开开发者工具（F12），切换到 **Network / 网络** 标签。
+3. 刷新文件列表，或打开一个网盘文件夹，确保出现新的文件请求。
+4. 搜索 `file/sort`，选择已登录文件列表的请求。当前客户端可能使用 `drive-pc.quark.cn`，部分客户端仍使用 `drive.quark.cn`，例如：
+
+   ```text
+   https://drive-pc.quark.cn/1/clouddrive/file/sort?...
+   https://drive.quark.cn/1/clouddrive/file/sort?...
+   ```
+
+5. 在该请求的 **Request Headers / 请求标头** 中复制完整的 `Cookie` 值（不要包含 `Cookie:` 前缀），粘贴到配置文件的 `cookie` 字段。
+
+应选取登录后返回自己网盘文件列表的请求，而不是仅检查客户端版本的 `pan.quark.cn/api/client_version` 请求。
+用于身份验证的 Cookie 通常包含 `__pus`、`__puus` 等字段；保留完整 Cookie，无需手动解码、拆分或修改其值。
+MCP 会将配置中的 Cookie 原样作为请求头发送，浏览器请求域名不同不需要修改 Cookie 解析逻辑。
+
+Cookie 相当于登录凭据，请勿将真实 Cookie 提交到 Git、Issue 或 Pull Request。
 
 ## 使用方法
 

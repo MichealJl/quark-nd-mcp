@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5"
+	"crypto/sha1"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
@@ -724,7 +725,7 @@ func (c *Client) UploadFile(ctx context.Context, parentFid, filePath string, pro
 
 	// Calculate MD5 and SHA1
 	md5Hash := md5.New()
-	sha1Hash := md5.New() // Note: Quark uses md5 for both in their implementation
+	sha1Hash := sha1.New()
 	if _, err := io.Copy(io.MultiWriter(md5Hash, sha1Hash), file); err != nil {
 		return fmt.Errorf("failed to calculate hash: %w", err)
 	}
@@ -994,7 +995,7 @@ func (c *Client) UploadFromReader(ctx context.Context, parentFid, fileName strin
 	}
 
 	md5Hash := md5.New()
-	sha1Hash := md5.New()
+	sha1Hash := sha1.New()
 	if _, err := io.Copy(io.MultiWriter(md5Hash, sha1Hash), bytes.NewReader(data)); err != nil {
 		return fmt.Errorf("failed to calculate hash: %w", err)
 	}

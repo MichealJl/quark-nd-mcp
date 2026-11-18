@@ -25,14 +25,18 @@
 
 从 GitHub Releases 下载适合您平台的最新版本：
 
+> 以下链接指向当前最新版本 [v1.2.1](https://github.com/MichealJl/quark-nd-mcp/releases/tag/v1.2.1)；如需历史版本，请访问 [所有版本](https://github.com/MichealJl/quark-nd-mcp/releases)。
+
 | 平台 | 架构 | 下载链接 |
 |------|------|----------|
-| macOS | Apple Silicon (M1/M2/M3/M4) | [quark-nd-mcp_darwin_apple_silicon.tar.gz](https://github.com/MichealJl/quark-nd-mcp/releases) |
-| macOS | Intel | [quark-nd-mcp_darwin_intel.tar.gz](https://github.com/MichealJl/quark-nd-mcp/releases) |
-| Linux | x64 | [quark-nd-mcp_linux_amd64.tar.gz](https://github.com/MichealJl/quark-nd-mcp/releases) |
-| Linux | ARM64 | [quark-nd-mcp_linux_arm64.tar.gz](https://github.com/MichealJl/quark-nd-mcp/releases) |
-| Windows | x64 | [quark-nd-mcp_windows_amd64.zip](https://github.com/MichealJl/quark-nd-mcp/releases) |
-| Windows | ARM64 | [quark-nd-mcp_windows_arm64.zip](https://github.com/MichealJl/quark-nd-mcp/releases) |
+| macOS | Apple Silicon (M1/M2/M3/M4) | [quark-nd-mcp_1.2.1_darwin_apple_silicon.tar.gz](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.2.1/quark-nd-mcp_1.2.1_darwin_apple_silicon.tar.gz) |
+| macOS | Intel | [quark-nd-mcp_1.2.1_darwin_intel.tar.gz](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.2.1/quark-nd-mcp_1.2.1_darwin_intel.tar.gz) |
+| Linux | x64 | [quark-nd-mcp_1.2.1_linux_amd64.tar.gz](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.2.1/quark-nd-mcp_1.2.1_linux_amd64.tar.gz) |
+| Linux | ARM64 | [quark-nd-mcp_1.2.1_linux_arm64.tar.gz](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.2.1/quark-nd-mcp_1.2.1_linux_arm64.tar.gz) |
+| Windows | x64 | [quark-nd-mcp_1.2.1_windows_amd64.zip](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.2.1/quark-nd-mcp_1.2.1_windows_amd64.zip) |
+| Windows | ARM64 | [quark-nd-mcp_1.2.1_windows_arm64.zip](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.2.1/quark-nd-mcp_1.2.1_windows_arm64.zip) |
+
+校验文件完整性：[quark-nd-mcp_1.2.1_checksums.txt](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.2.1/quark-nd-mcp_1.2.1_checksums.txt)
 
 ### 从源码编译
 

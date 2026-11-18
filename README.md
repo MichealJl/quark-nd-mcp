@@ -25,18 +25,18 @@
 
 从 GitHub Releases 下载适合您平台的最新版本：
 
-> 以下链接指向当前最新版本 [v1.2.1](https://github.com/MichealJl/quark-nd-mcp/releases/tag/v1.2.1)；如需历史版本，请访问 [所有版本](https://github.com/MichealJl/quark-nd-mcp/releases)。
+> 以下链接指向当前最新版本 [v1.3.0](https://github.com/MichealJl/quark-nd-mcp/releases/tag/v1.3.0)；如需历史版本，请访问 [所有版本](https://github.com/MichealJl/quark-nd-mcp/releases)。
 
 | 平台 | 架构 | 下载链接 |
 |------|------|----------|
-| macOS | Apple Silicon (M1/M2/M3/M4) | [quark-nd-mcp_1.2.1_darwin_apple_silicon.tar.gz](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.2.1/quark-nd-mcp_1.2.1_darwin_apple_silicon.tar.gz) |
-| macOS | Intel | [quark-nd-mcp_1.2.1_darwin_intel.tar.gz](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.2.1/quark-nd-mcp_1.2.1_darwin_intel.tar.gz) |
-| Linux | x64 | [quark-nd-mcp_1.2.1_linux_amd64.tar.gz](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.2.1/quark-nd-mcp_1.2.1_linux_amd64.tar.gz) |
-| Linux | ARM64 | [quark-nd-mcp_1.2.1_linux_arm64.tar.gz](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.2.1/quark-nd-mcp_1.2.1_linux_arm64.tar.gz) |
-| Windows | x64 | [quark-nd-mcp_1.2.1_windows_amd64.zip](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.2.1/quark-nd-mcp_1.2.1_windows_amd64.zip) |
-| Windows | ARM64 | [quark-nd-mcp_1.2.1_windows_arm64.zip](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.2.1/quark-nd-mcp_1.2.1_windows_arm64.zip) |
+| macOS | Apple Silicon (M1/M2/M3/M4) | [quark-nd-mcp_1.3.0_darwin_apple_silicon.tar.gz](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.3.0/quark-nd-mcp_1.3.0_darwin_apple_silicon.tar.gz) |
+| macOS | Intel | [quark-nd-mcp_1.3.0_darwin_intel.tar.gz](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.3.0/quark-nd-mcp_1.3.0_darwin_intel.tar.gz) |
+| Linux | x64 | [quark-nd-mcp_1.3.0_linux_amd64.tar.gz](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.3.0/quark-nd-mcp_1.3.0_linux_amd64.tar.gz) |
+| Linux | ARM64 | [quark-nd-mcp_1.3.0_linux_arm64.tar.gz](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.3.0/quark-nd-mcp_1.3.0_linux_arm64.tar.gz) |
+| Windows | x64 | [quark-nd-mcp_1.3.0_windows_amd64.zip](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.3.0/quark-nd-mcp_1.3.0_windows_amd64.zip) |
+| Windows | ARM64 | [quark-nd-mcp_1.3.0_windows_arm64.zip](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.3.0/quark-nd-mcp_1.3.0_windows_arm64.zip) |
 
-校验文件完整性：[quark-nd-mcp_1.2.1_checksums.txt](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.2.1/quark-nd-mcp_1.2.1_checksums.txt)
+校验文件完整性：[quark-nd-mcp_1.3.0_checksums.txt](https://github.com/MichealJl/quark-nd-mcp/releases/download/v1.3.0/quark-nd-mcp_1.3.0_checksums.txt)
 
 ### 从源码编译
 
@@ -73,7 +73,7 @@ go build -o quark-nd-mcp .
 多个实例（客户端可能同时起好几个本服务进程）**共用同一份配置，登录一次即可**；
 `login` 重写配置后，正在运行的实例下次请求就会用上新 Cookie，**不需要重启**。
 
-手工方式：在浏览器中登录夸克网盘 → F12 → Network → 找任意发往 `drive.quark.cn` 的请求 →
+手工方式：在浏览器中登录夸克网盘 → F12 → Network → 找任意发往 `drive-pc.quark.cn` 的请求 →
 复制请求头里的 `Cookie` 值，然后 `./quark-nd-mcp config set cookie "<粘贴>"`。
 
 ## 使用方法

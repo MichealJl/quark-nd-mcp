@@ -56,7 +56,7 @@ go build -o quark-nd-mcp .
 2. 打开开发者工具（F12）
 3. 切换到 Network（网络）标签
 4. 刷新页面
-5. 找到任意请求到 `drive.quark.cn` 的请求
+5. 找到任意请求到 `drive-pc.quark.cn` 的请求
 6. 从请求头中复制 `Cookie` 的值
 
 ## 使用方法
